@@ -1,0 +1,410 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ralph Alejandrino · How I Work With AI Agents</title>
+<meta name="description" content="The Claude Code agent I run my engineering work through: protocols as skills, state in files, a Python MCP server, independent verification, and the mistakes that shaped it.">
+<meta name="color-scheme" content="light dark">
+<meta property="og:title" content="Ralph Alejandrino · How I Work With AI Agents">
+<meta property="og:description" content="The Claude Code agent I run my engineering work through, replayed step by step.">
+<meta property="og:type" content="website">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=Martian+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body, h1, h2, h3, p, dl, dd, dt, ol, ul, figure, table { margin: 0; padding: 0; }
+  ol, ul { list-style: none; }
+  table { border-collapse: collapse; }
+  /* Tokens copied from the site's own pages (index.html) so this page reads as part of it. */
+  :root {
+    --bg:          oklch(0.985 0.002 250);
+    --surface:     oklch(1 0 0);
+    --ink:         oklch(0.22 0.021 252);
+    --body:        oklch(0.415 0.019 252);
+    --muted:       oklch(0.545 0.016 252);
+    --rule:        oklch(0.905 0.008 252);
+    --rule-strong: oklch(0.82 0.012 252);
+    --signal:      oklch(0.505 0.185 256);
+    --signal-ink:  oklch(0.42 0.17 256);
+    --signal-weak: oklch(0.955 0.028 256);
+    --warn:        oklch(0.55 0.13 65);
+    --term-bg:     oklch(0.17 0.012 255);
+    --term-ink:    oklch(0.9 0.01 255);
+    --term-dim:    oklch(0.66 0.015 255);
+    --term-accent: oklch(0.78 0.13 200);
+    --term-warn:   oklch(0.8 0.13 85);
+    --f-sans: "Archivo", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    --f-mono: "Martian Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    --gutter: clamp(1.15rem, 4vw, 2.5rem);
+    --measure: 66ch;
+    --ease: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg:          oklch(0.188 0.017 255);
+      --surface:     oklch(0.232 0.019 255);
+      --ink:         oklch(0.955 0.006 255);
+      --body:        oklch(0.805 0.012 255);
+      --muted:       oklch(0.655 0.015 255);
+      --rule:        oklch(0.318 0.019 255);
+      --rule-strong: oklch(0.40 0.022 255);
+      --signal:      oklch(0.755 0.145 255);
+      --signal-ink:  oklch(0.80 0.14 255);
+      --signal-weak: oklch(0.285 0.055 255);
+      --warn:        oklch(0.8 0.12 75);
+      --term-bg:     oklch(0.14 0.012 255);
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg:          oklch(0.188 0.017 255);
+    --surface:     oklch(0.232 0.019 255);
+    --ink:         oklch(0.955 0.006 255);
+    --body:        oklch(0.805 0.012 255);
+    --muted:       oklch(0.655 0.015 255);
+    --rule:        oklch(0.318 0.019 255);
+    --rule-strong: oklch(0.40 0.022 255);
+    --signal:      oklch(0.755 0.145 255);
+    --signal-ink:  oklch(0.80 0.14 255);
+    --signal-weak: oklch(0.285 0.055 255);
+    --warn:        oklch(0.8 0.12 75);
+    --term-bg:     oklch(0.14 0.012 255);
+  }
+
+  body { background: var(--bg); color: var(--body); font-family: var(--f-sans); font-size: 1rem; line-height: 1.6; }
+  .shell { max-width: 60rem; margin: 0 auto; padding-inline: var(--gutter); padding-block: clamp(2rem, 6vw, 4rem) 4rem; display: grid; gap: clamp(2.5rem, 6vw, 4rem); }
+  h1, h2, h3 { color: var(--ink); line-height: 1.15; text-wrap: balance; }
+  h1 { font-size: clamp(2rem, 5.5vw, 3.2rem); font-weight: 700; letter-spacing: -0.025em; }
+  h2 { font-size: clamp(1.35rem, 3vw, 1.75rem); font-weight: 650; letter-spacing: -0.015em; }
+  h3 { font-size: 1rem; font-weight: 650; }
+  a { color: var(--signal-ink); text-underline-offset: 3px; }
+  code, .mono { font-family: var(--f-mono); font-size: 0.82em; }
+  button { font: inherit; cursor: pointer; }
+  :focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+  .byline, .eyebrow { font-family: var(--f-mono); font-size: 0.74rem; letter-spacing: 0.04em; text-transform: uppercase; color: var(--signal-ink); }
+  .masthead { display: grid; gap: 1rem; }
+  .lede { max-width: var(--measure); font-size: 1.08rem; }
+  .contact { display: flex; flex-wrap: wrap; gap: 0.4rem 1.2rem; font-size: 0.9rem; color: var(--muted); }
+  .prose { max-width: var(--measure); display: grid; gap: 0.9rem; }
+  section { display: grid; gap: 1.2rem; min-width: 0; }
+  section > header { display: grid; gap: 0.4rem; border-top: 1px solid var(--rule-strong); padding-top: 1.2rem; }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0; border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; background: var(--surface); }
+  .stat { padding: 0.9rem 1rem; border-right: 1px solid var(--rule); border-bottom: 1px solid var(--rule); display: grid; gap: 0.15rem; }
+  .stat b { font-family: var(--f-mono); font-size: 1.3rem; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 0.8rem; color: var(--muted); line-height: 1.35; }
+
+  .parts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+  .part { border-top: 2px solid var(--signal); padding-top: 0.7rem; display: grid; gap: 0.35rem; align-content: start; min-width: 0; }
+  .part p { font-size: 0.93rem; }
+
+  .seg { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .seg button { border: 1px solid var(--rule-strong); background: var(--surface); color: var(--body); padding: 0.35rem 0.8rem; border-radius: 999px; font-size: 0.86rem; }
+  .seg button[aria-pressed="true"] { background: var(--signal); border-color: var(--signal); color: var(--bg); }
+
+  .replay { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 1rem; }
+  .term { background: var(--term-bg); color: var(--term-ink); border-radius: 10px; font-family: var(--f-mono); font-size: 0.76rem; line-height: 1.6; padding: 1rem 1.1rem; min-height: 300px; max-height: 420px; overflow-y: auto; min-width: 0; }
+  .term .line { white-space: pre-wrap; word-break: break-word; }
+  .term .tool { color: var(--term-ink); }
+  .term .you { color: var(--term-accent); }
+  .term .out { color: var(--term-dim); }
+  .term .flag { color: var(--term-warn); }
+  .term .gap { height: 0.7rem; }
+  .why { border: 1px solid var(--rule); border-radius: 10px; padding: 1rem; background: var(--surface); display: grid; gap: 0.5rem; align-content: start; min-width: 0; }
+  .why .k { font-family: var(--f-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--signal-ink); }
+  .why p { font-size: 0.93rem; }
+  .controls { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+  .btn { border: 1px solid var(--rule-strong); background: var(--surface); color: var(--ink); padding: 0.45rem 0.9rem; border-radius: 8px; font-size: 0.88rem; }
+  .btn.primary { background: var(--signal); border-color: var(--signal); color: var(--bg); }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .progress { margin-left: auto; font-family: var(--f-mono); font-size: 0.74rem; color: var(--muted); }
+
+  .try { display: grid; gap: 0.7rem; }
+  .try input { width: 100%; font: inherit; padding: 0.65rem 0.9rem; border-radius: 8px; border: 1px solid var(--rule-strong); background: var(--surface); color: var(--ink); }
+  .chips { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+  .chips button { border: 1px dashed var(--rule-strong); background: transparent; color: var(--body); padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 0.82rem; }
+  .match { border: 1px solid var(--signal); background: var(--signal-weak); border-radius: 10px; padding: 1rem; display: grid; gap: 0.5rem; }
+  .match .name { font-family: var(--f-mono); font-size: 0.86rem; font-weight: 600; color: var(--signal-ink); }
+  .match ol { list-style: decimal; padding-left: 1.2rem; display: grid; gap: 0.25rem; font-size: 0.92rem; }
+  .match .guard { font-size: 0.86rem; color: var(--warn); }
+  .nomatch { border: 1px dashed var(--rule-strong); border-radius: 10px; padding: 1rem; font-size: 0.92rem; color: var(--muted); }
+
+  .principle { border-left: 3px solid var(--signal); padding: 0.2rem 0 0.2rem 1rem; max-width: var(--measure); display: grid; gap: 0.6rem; }
+  .principle p.big { font-size: 1.15rem; color: var(--ink); font-weight: 600; }
+
+  .lessons { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 0.9rem; }
+  .lesson { border: 1px solid var(--rule); border-radius: 10px; padding: 0.9rem 1rem; background: var(--surface); display: grid; gap: 0.35rem; align-content: start; min-width: 0; }
+  .lesson .cat { font-family: var(--f-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+  .lesson p { font-size: 0.9rem; }
+  .lesson .rule { font-size: 0.88rem; color: var(--signal-ink); font-weight: 600; }
+
+  .wrong { display: grid; gap: 0.9rem; }
+  .wrong li { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1rem; border-top: 1px solid var(--rule); padding-top: 0.9rem; }
+  .wrong .lab { font-family: var(--f-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); display: block; margin-bottom: 0.2rem; }
+  .wrong p { font-size: 0.93rem; }
+
+  .never { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.8rem; }
+  .never div { border: 1px solid var(--rule); border-radius: 10px; padding: 0.8rem 1rem; background: var(--surface); display: grid; gap: 0.2rem; }
+  .never b { color: var(--ink); font-size: 0.93rem; }
+  .never span { font-size: 0.87rem; }
+
+  footer { border-top: 1px solid var(--rule); padding-top: 1.2rem; font-size: 0.85rem; color: var(--muted); display: grid; gap: 0.4rem; }
+
+  @media (max-width: 720px) {
+    .replay, .wrong li { grid-template-columns: minmax(0, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <header class="masthead">
+    <p class="byline">Ralph Alejandrino · How I work</p>
+    <h1>I build with an AI agent, and I make it prove its work.</h1>
+    <p class="lede">I run my engineering through one Claude Code agent. I call it Cici. It is Claude plus everything I've built around it: written protocols it must follow, a knowledge base it reads and writes every session, an MCP server I wrote in Python, a second agent that checks the first, and a record of every mistake it has made. This page shows how it works, with real sessions replayed and nothing confidential in them.</p>
+    <p class="contact">
+      <span>Baguio, Philippines · UTC+8</span>
+      <a href="/">Case notes</a>
+      <a href="/cv/">CV</a>
+      <a href="https://github.com/ralphalejandrino">github.com/ralphalejandrino</a>
+    </p>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <section id="parts">
+    <header><p class="eyebrow">The system</p><h2>Six parts, each added after something went wrong</h2></header>
+    <div class="parts">
+      <div class="part"><h3>State lives in files</h3><p>A git-backed Markdown knowledge base holds the live checkpoint, the task board and one log per session. Every session starts by reading it, and a hook commits it after every reply. A power cut mid-session loses almost nothing.</p></div>
+      <div class="part"><h3>Protocols are skills</h3><p>Deploys, desktop builds, data changes and the test bench each have a written procedure the agent loads by name. A deploy is never reconstructed from memory, because one once was, and it skipped a step.</p></div>
+      <div class="part"><h3>An MCP server I wrote</h3><p>About 550 lines of Python exposing 21 Gmail, Calendar and Drive tools, each annotated as read-only, write or destructive, so the risky ones are visible to the model and to me.</p></div>
+      <div class="part"><h3>A second agent checks the first</h3><p>A cheap scout model does broad searches. An expensive auditor model independently re-runs tests, proves a fix's test fails without the fix, and checks claims against disk. It is never the agent that wrote the code.</p></div>
+      <div class="part"><h3>Lessons, saved with their incident</h3><p>When the agent gets something wrong or I correct it, the lesson is written down with the incident that taught it and loaded in every future session.</p></div>
+      <div class="part"><h3>Least privilege, by default</h3><p>Machines sit on a private network with tag-based access. The deploy machine can reach a client's register as one user, allowed one privileged command: the deploy wrapper. Nothing sends, deploys or deletes without a yes from me in that turn.</p></div>
+    </div>
+  </section>
+
+  <section id="replay">
+    <header><p class="eyebrow">Replayed sessions</p><h2>Four real sessions, step by step</h2></header>
+    <p class="prose">Abridged from real session logs, with client names and addresses removed. Step through one to see what the agent did and why it did it that way.</p>
+    <div class="seg" id="scenarioTabs" role="group" aria-label="Choose a session"></div>
+    <div class="replay">
+      <div class="term" id="term" aria-live="polite"></div>
+      <div class="why" id="why"></div>
+    </div>
+    <div class="controls">
+      <button class="btn" id="prevBtn" type="button">Back</button>
+      <button class="btn primary" id="nextBtn" type="button">Next step</button>
+      <button class="btn" id="playBtn" type="button">Play all</button>
+      <span class="progress" id="progress"></span>
+    </div>
+  </section>
+
+  <section id="principle">
+    <header><p class="eyebrow">The principle</p><h2>The tools decide. The model reports.</h2></header>
+    <div class="principle">
+      <p class="big">When I asked a model to filter a long list of deadlines, it silently dropped rows. I measured it three times on the same prompt, and it dropped a 30-point item twice.</p>
+      <p>So filtering and reconciliation moved into deterministic Python, and the model relays what the tool produced. Every scan prints a coverage matrix with each source's state. A source that failed reads UNKNOWN, never "nothing found", and the command exits non-zero until every source is accounted for. The model is good at judgement and language. It is not a reliable filter, so I don't use it as one.</p>
+    </div>
+  </section>
+
+  <section id="try">
+    <header><p class="eyebrow">Skills</p><h2>Say it plainly, and the right protocol runs</h2></header>
+    <p class="prose">Type a request the way you'd say it, or tap an example, to see which protocol would load and what it guarantees.</p>
+    <div class="try">
+      <input id="phrase" type="text" aria-label="A request for the agent" placeholder="e.g. ship the POS fix to the café" autocomplete="off">
+      <div class="chips" id="chips"></div>
+      <div id="matchOut"></div>
+    </div>
+  </section>
+
+  <section id="lessons">
+    <header><p class="eyebrow">Memory</p><h2>Lessons, each one earned</h2></header>
+    <p class="prose">A sample of the lessons the agent loads every session, each with the incident that produced it.</p>
+    <div class="seg" id="lessonTabs" role="group" aria-label="Filter lessons"></div>
+    <div class="lessons" id="lessonGrid"></div>
+  </section>
+
+  <section id="wrong">
+    <header><p class="eyebrow">What went wrong</p><h2>The failures that shaped it</h2></header>
+    <ol class="wrong">
+      <li><div><span class="lab">What happened</span><p>A connector's "create draft" tool actually sent four job applications I hadn't reviewed.</p></div><div><span class="lab">What changed</span><p>Every write is verified after the fact, and sending is gated on an explicit yes in the same turn. "It's only a draft" is checked, not assumed.</p></div></li>
+      <li><div><span class="lab">What happened</span><p>Two sources were declared in a scan but never actually read. Their cells defaulted to "n/a", so the scan reported a clean board for weeks.</p></div><div><span class="lab">What changed</span><p>A completeness gate: any unread source makes the whole run fail loudly.</p></div></li>
+      <li><div><span class="lab">What happened</span><p>The agent rebuilt a deploy from a summary in its notes instead of the runbook, and the rebuilt version omitted the step that unblocks the pull.</p></div><div><span class="lab">What changed</span><p>Runbooks became skills, and the skill is the only procedure.</p></div></li>
+      <li><div><span class="lab">What happened</span><p>It reported an "empty" system log that was really its own query with a zero-line limit, and repeated the finding in four files.</p></div><div><span class="lab">What changed</span><p>A probe must be shown to find something before its silence counts as evidence.</p></div></li>
+    </ol>
+  </section>
+
+  <section id="never">
+    <header><p class="eyebrow">Guardrails</p><h2>What the agent never does on its own</h2></header>
+    <div class="never">
+      <div><b>Send a message</b><span>It drafts. I say "send" in the same turn, every time.</span></div>
+      <div><b>Deploy to a live machine</b><span>It prepares and verifies. The go-ahead is mine.</span></div>
+      <div><b>Write to a client's data</b><span>It pulls a copy, checks integrity and rehearses. Changing the live copy needs sign-off.</span></div>
+      <div><b>Solve a captcha</b><span>Verification checks always go to a person.</span></div>
+      <div><b>Report "nothing found" after a failed check</b><span>A failed pull is UNKNOWN. An empty result and a broken probe look the same.</span></div>
+      <div><b>Guess a value into a form</b><span>A blank field beats a false statement.</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Figures are from the knowledge base and repositories. Session replays are abridged from real logs with client details removed. The production code itself stays private because it holds client data.</p>
+    <p><a href="/">Case notes</a> · <a href="/cv/">CV</a> · <a href="https://github.com/ralphalejandrino">GitHub</a></p>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+  function $(id) { return document.getElementById(id); }
+
+  var STATS = [
+    ["1,645", "commits to the knowledge base"],
+    ["55", "engineering sessions logged in full"],
+    ["92", "lessons in memory"],
+    ["30", "skills (written protocols)"],
+    ["21", "tools in my Python MCP server"],
+    ["2,900+", "tests across the two production systems"]
+  ];
+  $("stats").innerHTML = STATS.map(function (s) { return '<div class="stat"><b>' + esc(s[0]) + '</b><span>' + esc(s[1]) + '</span></div>'; }).join("");
+
+  var SCENARIOS = [
+    { label: "Start of day", steps: [
+      { l: [["you", "> lets work"]], k: "The trigger", w: "A plain phrase starts the session. The loader skill runs the same load every time." },
+      { l: [["tool", "Read STATE.md  → ## NOW (the live checkpoint)"], ["tool", "Read the task board and the latest session log"]], k: "State lives in files", w: "The agent starts from the checkpoint the last session wrote, not from memory of an old chat." },
+      { l: [["tool", "gmail_search_threads  newer_than:2d"], ["out", "23 threads → 1 actionable · 22 others (19 unread)"]], k: "Count what you skip", w: "The digest shows only what needs action, but always prints how many it filtered out. A missing count would look exactly like an empty inbox." },
+      { l: [["tool", "gmail_get_message  raw=true"], ["out", "text part: “view the HTML version for details” → reading the HTML part…"]], k: "Read it before you report it", w: "One reply's plain-text part was a stub. The agent pulled the raw message and read the HTML instead of guessing from a snippet." },
+      { l: [["tool", "search: confirmation mail for last night's submission"], ["flag", "0 results in 24 h → marked UNCONFIRMED"], ["tool", "check the browser tab"], ["flag", "relay did not answer → “could not check”, not “fine”"]], k: "Absence is evidence too", w: "An expected confirmation never arrived. The agent flagged it instead of assuming the task was done, and said plainly that its second check couldn't run." },
+      { l: [["tool", "calendar_list_events  today → +14 days"], ["out", "67 events · flags what needs preparing tonight"]], k: "Find the collisions", w: "A deadline landing on an already full day is the most useful thing a morning load can surface." },
+      { l: [["tool", "Edit STATE.md  → new ## NOW (tagged, timestamped)"], ["out", "hook: committed + pushed"]], k: "Checkpoint before reporting", w: "Everything is written down before the brief. A finding that lives only in a chat message is lost when the session ends." },
+      { l: [["you", "SWEEP → EMAILS → TODAY → NOTICES → CLARIFICATIONS → FOCUS"], ["out", "E1 · T1 T2 · N1 N2 · C1 C2"]], k: "The brief", w: "It opens with every source and whether it passed. Every item gets an ID, so I can reply “do T1”." }
+    ]},
+    { label: "Ship a POS fix", steps: [
+      { l: [["you", "> deploy the POS"]], k: "The runbook is the skill", w: "The deploy skill loads. The procedure is never rebuilt from notes." },
+      { l: [["tool", "pre-flight: test suite · django check · migration plan"], ["tool", "dead-CSS-class audit · service-worker cache bump"], ["out", "all green · frontend-only · no migrations"]], k: "Pre-flight", w: "The frontend has no CSS build step, so a missing class silently does nothing. Tests can't catch that, so an audit does." },
+      { l: [["tool", "git push origin pos:main   (fast-forward only)"]], k: "Promote", w: "The register only pulls main, and main only fast-forwards." },
+      { l: [["flag", "Ready: 3 commits, frontend-only, no migrations. Go?"], ["you", "> go"]], k: "A person says go", w: "The agent can run the whole deploy, but a live register is never touched without a yes in that turn." },
+      { l: [["tool", "ssh deploy@register  sudo -n deploy-wrapper --dry-run"], ["tool", "ssh deploy@register  sudo -n deploy-wrapper"], ["out", "open shift? no · DB snapshot OK · pull ff · kiosk relaunched"]], k: "One command, tightly scoped", w: "The deploy machine may run exactly one privileged command on the register. The wrapper refuses to run during an open cashier shift and snapshots the database first." },
+      { l: [["tool", "verify: served service-worker version · module endpoints · bytecode age"], ["out", "401 on an auth-gated route = PASS (the import works)"]], k: "Verify the artifact", w: "A version string can match while old code is still loaded. The agent checks what the running process actually serves." },
+      { l: [["out", "rollback: snapshot path recorded in the log"]], k: "Always a way back", w: "Every deploy records exactly how to undo it." }
+    ]},
+    { label: "Test a text order", steps: [
+      { l: [["you", "> start the bench"]], k: "The bench", w: "An Android emulator running my capture app, a TLS proxy, and the real CRM desktop build on demo data." },
+      { l: [["tool", "is it already up?  → no"], ["tool", "boot emulator · reinstall the CA · start the exe"]], k: "Check before rebuilding", w: "Half the rig doesn't survive a reboot. The skill says which half and how to bring it back." },
+      { l: [["tool", "adb emu sms send <demo customer> “Paorder po ng dalawang 11kgs refill”"]], k: "A real-shaped order", w: "The test text reads the way real customers write: Taglish, shorthand, a size and a type." },
+      { l: [["out", "capture app: captured → durable outbox → POST to CRM"]], k: "Queued until it lands", w: "The old forwarder lost every order during a 2.5-day outage. The app keeps each message until the CRM confirms it." },
+      { l: [["tool", "grep -c “<customer name>”  /orders/drafts/  → 1"], ["tool", "grep -c “<a name never sent>”  → 0"]], k: "Negative control", w: "The check counts content, not the status code, and proves itself by showing that a string never sent returns 0." },
+      { l: [["flag", "first hour of the rig: an http:// URL retried forever"]], k: "What unit tests could not see", w: "Android blocks cleartext traffic, and the app classified that as “retry” instead of “refused”, so it never stopped. Only the running rig showed it." }
+    ]},
+    { label: "A bug report video", steps: [
+      { l: [["you", "> the manager sent a video: the register crashed during a GCash payment"]], k: "Evidence first", w: "Before any theory, the agent studies the actual evidence." },
+      { l: [["tool", "extract frames from the 13 s video (ffmpeg)"], ["out", "the failure happens twice in 13 s: it's reproducible"]], k: "Decode it end to end", w: "A plausible theory once led to a wrong fix on a live machine. Evidence gets decoded completely before diagnosing." },
+      { l: [["out", "the cart survives both times"], ["flag", "a crash would wipe the cart → NOT a crash; the screen was displaced"]], k: "Reframe", w: "A reload would have cleared the in-memory cart. It survived, so the app kept running and the payment dialog was pushed off-screen." },
+      { l: [["tool", "test the leading theory at 3 kiosk viewports (headless Chromium)"], ["flag", "theory DISPROVEN → reported as such"]], k: "Admit the dead end", w: "The first theory failed, and the agent said so instead of shipping a fix for it." },
+      { l: [["tool", "audit every dialog"], ["out", "15 of 21 could vanish on a stray tap → made opt-in"], ["out", "zoom locked · field travel 169–219 px → 0 · 20 s escape"]], k: "Fix the class", w: "Each defence answers a confirmed defect, so this kind of bug stops recurring one dialog at a time." },
+      { l: [["tool", "standing test over every dialog"], ["out", "revert each defence → the test fails loudly"]], k: "A test that can fail", w: "Each defence was removed on purpose to show the test catches it." },
+      { l: [["out", "deployed with a go · re-verified on the register"], ["flag", "don't tell the client “the crash is fixed”: the trigger was never reproduced"]], k: "Say exactly what's true", w: "It was class hardening, not a confirmed fix, and the message to the client said so." }
+    ]}
+  ];
+  var cur = 0, pos = 0, timer = null;
+  $("scenarioTabs").innerHTML = SCENARIOS.map(function (s, i) { return '<button type="button" aria-pressed="' + (i === 0) + '" data-i="' + i + '">' + esc(s.label) + '</button>'; }).join("");
+  function render() {
+    var sc = SCENARIOS[cur], html = [];
+    for (var i = 0; i <= pos; i++) {
+      if (i > 0) html.push('<div class="gap"></div>');
+      sc.steps[i].l.forEach(function (ln) { html.push('<div class="line ' + ln[0] + '">' + esc(ln[1]) + '</div>'); });
+    }
+    var t = $("term"); t.innerHTML = html.join(""); t.scrollTop = t.scrollHeight;
+    var st = sc.steps[pos];
+    $("why").innerHTML = '<div class="k">' + esc(st.k) + '</div><p>' + esc(st.w) + '</p>';
+    $("progress").textContent = "step " + (pos + 1) + " / " + sc.steps.length;
+    $("prevBtn").disabled = pos === 0;
+    $("nextBtn").disabled = pos === sc.steps.length - 1;
+  }
+  function stop() { if (timer) { clearInterval(timer); timer = null; $("playBtn").textContent = "Play all"; } }
+  $("scenarioTabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    stop(); cur = +b.dataset.i; pos = 0;
+    Array.prototype.forEach.call(this.children, function (c) { c.setAttribute("aria-pressed", String(c === b)); });
+    render();
+  });
+  $("nextBtn").addEventListener("click", function () { stop(); if (pos < SCENARIOS[cur].steps.length - 1) { pos++; render(); } });
+  $("prevBtn").addEventListener("click", function () { stop(); if (pos > 0) { pos--; render(); } });
+  $("playBtn").addEventListener("click", function () {
+    if (timer) { stop(); return; }
+    if (pos === SCENARIOS[cur].steps.length - 1) pos = 0;
+    render(); this.textContent = "Pause";
+    timer = setInterval(function () { if (pos < SCENARIOS[cur].steps.length - 1) { pos++; render(); } else { stop(); } }, 2600);
+  });
+  render();
+
+  var SKILLS = [
+    { name: "session loader", words: "lets work load context catch start session morning checkpoint wrap log done", steps: ["Read the live checkpoint, the board and the latest log", "Read mail and the next 14 days of calendar", "Write the checkpoint, then brief in six numbered sections"], guard: "Reads are automatic. Sending mail needs a yes." },
+    { name: "pos-deploy", words: "deploy pos ship register cafe café promote push release fix", steps: ["Pre-flight: suite, check, migration plan, dead-class audit, cache bump", "Promote main, fast-forward only", "Run the deploy wrapper over SSH, dry run first", "Verify what the running process serves; record the rollback"], guard: "The live register is touched only after a person says go." },
+    { name: "exe-rebuild", words: "rebuild crm exe build desktop app frozen binary stale new", steps: ["Pre-flight on Linux: suite, check, migrations", "Sync to the Windows build tree and verify by hash", "Build, then verify on the frozen exe itself"], guard: "Shipping to a client machine always asks first." },
+    { name: "db-safety", words: "database db data migration customers contacts count reclassify integrity client records", steps: ["Pull a copy; never inspect the live file in place", "Run integrity and foreign-key checks before and after", "Rehearse the change on the copy with a negative control"], guard: "No write to a client's live data without sign-off." },
+    { name: "test-bench", words: "bench emulator test text sms call phone android capture demo reseed", steps: ["Check what's already up", "Boot the emulator, CA, proxy and exe", "Send a text or a call and verify by content with a negative control"], guard: "Demo data only." },
+    { name: "scout (subagent)", words: "find where search grep list every place which files enumerate", steps: ["A cheaper model sweeps many files", "It returns the short answer with evidence", "Anything load-bearing gets checked directly"], guard: "Only for closed questions whose answer is cheap to verify." },
+    { name: "auditor (subagent)", words: "verify audit check independently review prove actually works red negative control second opinion", steps: ["A fresh agent re-runs the suite", "It proves the fix's test goes red without the fix", "It checks the claims against disk"], guard: "The auditor is never the agent that wrote the code." },
+    { name: "email-draft", words: "email reply write client draft message follow recruiter", steps: ["Ask first: draft, send, or schedule", "Compose in the house style", "Verify the draft exists and wasn't sent"], guard: "Nothing is sent without a yes in that turn." }
+  ];
+  var EXAMPLES = ["ship the POS fix to the café", "how many contacts are in the client DB?", "send a test text on the emulator", "rebuild the CRM exe", "find every place that uses this template", "prove this fix actually works"];
+  var STOP = " this the to on in of is it my me for and that what are how many up now do can you please ";
+  $("chips").innerHTML = EXAMPLES.map(function (x) { return '<button type="button">' + esc(x) + '</button>'; }).join("");
+  function tokens(s) { return s.toLowerCase().replace(/[^a-z0-9é ]+/g, " ").split(/\s+/).filter(function (w) { return w.length > 1 && STOP.indexOf(" " + w + " ") === -1; }); }
+  function matchPhrase(q) {
+    var qt = tokens(q); if (!qt.length) return null;
+    var best = null, bestScore = 0;
+    SKILLS.forEach(function (s) {
+      var sw = s.words.split(" "), score = 0;
+      qt.forEach(function (w) { if (sw.indexOf(w) !== -1) score += 2; else if (sw.some(function (x) { return x.length > 3 && (x.indexOf(w) === 0 || w.indexOf(x) === 0); })) score += 1; });
+      if (score > bestScore) { bestScore = score; best = s; }
+    });
+    return bestScore >= 2 ? best : null;
+  }
+  function renderMatch() {
+    var q = $("phrase").value.trim(), out = $("matchOut");
+    if (!q) { out.innerHTML = '<div class="nomatch">Type a request above, or tap an example.</div>'; return; }
+    var m = matchPhrase(q);
+    if (!m) { out.innerHTML = '<div class="nomatch">No protocol matches that. The agent would handle it directly and ask if anything is ambiguous.</div>'; return; }
+    out.innerHTML = '<div class="match"><div class="name">' + esc(m.name) + '</div><ol>' + m.steps.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join("") + '</ol><div class="guard">' + esc(m.guard) + '</div></div>';
+  }
+  $("phrase").addEventListener("input", renderMatch);
+  $("chips").addEventListener("click", function (e) { var b = e.target.closest("button"); if (!b) return; $("phrase").value = b.textContent; renderMatch(); });
+  $("phrase").value = EXAMPLES[0]; renderMatch();
+
+  var LESSONS = [
+    ["Verification", "Verify by hash, not by count", "A copy tool exited cleanly and the file counts matched, yet 7 videos had been lost to a filename case collision.", "Exit 0 and matching counts are not verification."],
+    ["Verification", "Prove the probe can go positive", "A log query with a zero-line limit returned nothing, and the emptiness was reported as a defect.", "Before reporting absence, show the check can find something."],
+    ["Verification", "A status code is not content", "A page returned HTTP 200, and the body was a login wall.", "Check the body for real content."],
+    ["Verification", "The real build is the test surface", "Two desktop-app bugs could never appear on the dev server, by construction.", "Verify on the frozen exe."],
+    ["Verification", "Decode evidence before diagnosing", "A plausible lead once produced a wrong fix, shipped to a live machine.", "Study the whole video or log before theorising."],
+    ["Data safety", "A clean text layer is not a clean page", "A de-identified PDF passed a text search while a client code was still visible in the image.", "Rasterize the page and look before shipping."],
+    ["Data safety", "Close the terminal before recording", "A screen recording captured the whole agent session.", "Close it, don't minimise it."],
+    ["Tooling", "A backup that can't report failure isn't one", "An auto-push hook ended in a silent true and failed on every commit for a day.", "Every automated step must fail loudly."],
+    ["Tooling", "Stream big files", "Reading a 78 MB export in one go ran the machine out of memory.", "Stream anything large."],
+    ["Tooling", "Read the field's own counter", "A 700-character limit in a web form looked like a broken Save button.", "Read controls back after setting them."],
+    ["Communication", "Quote the deadline verbatim", "“Preferably this week” got hardened into a date and created false urgency.", "A soft word stays a soft word."],
+    ["Communication", "Say a limitation once", "Re-explaining the same constraint across turns reads as drift.", "State it once, with the fix."]
+  ];
+  var CATS = ["All", "Verification", "Data safety", "Tooling", "Communication"];
+  $("lessonTabs").innerHTML = CATS.map(function (c, i) { return '<button type="button" aria-pressed="' + (i === 0) + '">' + esc(c) + '</button>'; }).join("");
+  function renderLessons(cat) {
+    $("lessonGrid").innerHTML = LESSONS.filter(function (l) { return cat === "All" || l[0] === cat; }).map(function (l) {
+      return '<article class="lesson"><div class="cat">' + esc(l[0]) + '</div><h3>' + esc(l[1]) + '</h3><p>' + esc(l[2]) + '</p><div class="rule">' + esc(l[3]) + '</div></article>';
+    }).join("");
+  }
+  $("lessonTabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    Array.prototype.forEach.call(this.children, function (c) { c.setAttribute("aria-pressed", String(c === b)); });
+    renderLessons(b.textContent);
+  });
+  renderLessons("All");
+})();
+</script>
+</body>
+</html>
