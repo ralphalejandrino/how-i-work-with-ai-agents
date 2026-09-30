@@ -1,39 +1,50 @@
 # How I work with AI agents
 
-**Live, interactive version: https://ralphalejandrino.github.io/agents/**
+**See it live:** https://ralphalejandrino.github.io/agents/
 
-I run my engineering work through one Claude Code agent. I call it Cici. It is Claude plus
-everything built around it, so that its work can be trusted on real client systems:
+Most of my engineering work goes through a Claude Code agent that I've set up and refined over
+time. I call it Cici. The model is only part of it. What makes it reliable enough to use on real
+client systems is the structure I've built around it.
 
-- **State lives in files, not in the chat.** A git-backed Markdown knowledge base holds the live
-  checkpoint, the task board and one log per session. A hook commits it after every reply.
-- **Protocols are skills.** Deploys, desktop builds, data changes and an Android test bench each
-  have a written procedure the agent loads by name.
-- **An MCP server in Python.** 21 Gmail, Calendar and Drive tools, each annotated as read-only,
-  write or destructive.
-- **A second agent checks the first.** A cheap scout model searches; an expensive auditor model
-  re-runs tests and proves a fix's test fails without the fix. It never reviews its own work.
-- **Lessons, saved with their incident**, loaded in every future session.
-- **Least privilege.** The deploy machine can run exactly one privileged command on a client's
-  register. Nothing is sent, deployed or deleted without a yes from me in that turn.
+## What that structure looks like
 
-The page replays four real sessions step by step (a morning load, a point-of-sale deploy, an
-end-to-end test of a text order, and a bug report that arrived as a video), plus the principle
-behind the design (*the tools decide, the model reports*), a sample of the saved lessons, and
-the failures that shaped it.
+- **It keeps its memory in files.** Project state, the task board and a log of every session
+  live in a Markdown knowledge base under git. Each session starts by reading where things
+  stand, and a hook commits the changes after every reply, so an interruption costs almost
+  nothing.
+- **It follows written procedures.** Deploying, building the desktop app, changing client data
+  and running the Android test bench each have a step-by-step protocol that the agent loads by
+  name instead of working from memory.
+- **It reaches my tools through an MCP server I wrote.** It's in Python, with 21 Gmail, Calendar
+  and Drive tools, and each one is marked read-only, write or destructive so the risky ones are
+  obvious.
+- **A second agent checks its work.** A lighter model handles searches, and a stronger one acts
+  as the auditor: it re-runs the tests and confirms a fix's test actually fails when the fix is
+  removed. The auditor never reviews its own code.
+- **It learns from its mistakes.** When something goes wrong, the lesson is saved along with
+  what caused it, and every later session loads it.
+- **It only has the access it needs.** On a client's register it can run exactly one privileged
+  command, the deploy script. Nothing gets sent, deployed or deleted until I say yes.
 
-## What is and isn't here
+## What's on the page
 
-`index.html` is the whole page: one self-contained file, no build step. Open it locally or use
-the live link above.
+Four real sessions you can step through: starting the day, deploying to a point-of-sale
+system, testing a text-message order end to end, and diagnosing a bug from a video. It also
+covers the idea the whole setup rests on (the tools make the decisions, and the model reports
+them), a sample of the saved lessons, and the failures that shaped it.
 
-The production code the agent works on stays private, because it holds client data. Session
-replays are abridged from real logs with client names, hostnames and addresses removed.
+## About this repo
 
-## Related
+`index.html` is the entire page: one file, no build step. Open it in a browser, or use the live
+link above.
+
+The code the agent works on isn't public because it holds client data, and the session replays
+have client names, hostnames and addresses removed.
+
+## Also by me
 
 - [Engineering case notes](https://ralphalejandrino.github.io/): five production incidents where
-  the tooling reported success and was wrong.
+  the tooling said everything was fine and it wasn't.
 - [CV](https://ralphalejandrino.github.io/cv/)
 
 Ralph Alejandrino · Baguio, Philippines · ralphmiguelalejandrino@gmail.com
